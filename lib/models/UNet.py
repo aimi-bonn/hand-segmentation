@@ -62,9 +62,6 @@ class UNet(nn.Module):
 
         x = self.out_conv(x)
 
-        # Some mention we should use Sigmoid activation, others use no activation
-        # return F.sigmoid(x)
-
         return x
 
 

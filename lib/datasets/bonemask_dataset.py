@@ -31,30 +31,26 @@ class BoneMaskDataset(Dataset):
         self.size = size
         self.mask_suffix = mask_suffix
         self.img_suffix = img_suffix
-        #assert 0 < size <= 1, 'Scale must be between 0 and 1'
 
         self.ids = [(splitext(file)[0]).split('_')[0] for file in listdir(imgs_dir)
                     if not file.startswith('.')]
-        # self.ids = [splitext(file)[0] for file in listdir(imgs_dir)
-        #             if not file.startswith('.')]
+        
         logging.info(f'Creating dataset with {len(self.ids)} examples')
         self.validation = validation
         if validation:
             self.augment_transform = transforms.Compose([
-                # transforms.ToPILImage(),
                 transforms.ToTensor()
             ])
         else:
             self.augment_transform = transforms.Compose([
-                # transforms.ToPILImage(),
                 transforms.ColorJitter(brightness=0.75, contrast=0.25, saturation=0.5),
                 transforms.ToTensor()
             ])
-        # self.transform = transforms.Compose([transforms.ToTensor()])
 
     def __len__(self):
         return len(self.ids)
 
+    # TODO: Replace all random.random() with either np or torch, as random.random() is NOT reproducable!
     def preprocess(self, img, mask, augment):
         img = np.array(img)
         img = (img - img.min()) / (img.max() - img.min()) * 255
@@ -176,7 +172,8 @@ class BoneMaskDataset(Dataset):
         # Scale the image according to the given image size
         resize = transforms.Resize((self.size, self.size))
         img = resize(img)
-
+        
+        #TODO: Should never happen, can probably be removed..
         if img.size != mask.size:
             mask = resize(mask)
             if img.size != mask.size:
@@ -186,21 +183,11 @@ class BoneMaskDataset(Dataset):
         if augment:
             img = self.augment_transform(img)[0].unsqueeze(dim=0)
 
-        #if img.max() > 1:
-        #####img = (img-img.min()) / (img.max()-img.min())
-
-        # mask = np.array(mask)
-        #
-        # # temp fix to problem: incorrectly labeled pseudo labels... (1=0, 0=1)
-        # if self.mask_suffix == "":
-        #     mask = np.where((mask == 0) | (mask == 1), mask ^ 1, mask)
-        #
-        # # This part makes sure we keep the mask values as [0,1]
-        # mask = torch.from_numpy(mask).unsqueeze(dim=0)
         mask = transforms.ToTensor()(mask)[0].unsqueeze(dim=0)
 
         return img, mask
 
+    # TODO: replace glob(..) to a implementation similar to that in the boneage dataset I made .. this seems to take a rediculous amount of time
     def __getitem__(self, i, to_augment=True):
         idx = self.ids[i]
         mask_file = glob(self.masks_dir + idx + self.mask_suffix + '.*')
@@ -210,15 +197,11 @@ class BoneMaskDataset(Dataset):
             f'Either no mask or multiple masks found for the ID {idx}: {mask_file}'
         assert len(img_file) == 1, \
             f'Either no image or multiple images found for the ID {idx}: {img_file}'
+        
         mask = Image.open(mask_file[0])
         img = Image.open(img_file[0])
 
         img = img.convert('RGBA')
-
-        #assert img.size == mask.size, \
-        #    f'Image and mask {idx} should be the same size, but are {img.size} and {mask.size}'
-
         img, mask = self.preprocess(img, mask, to_augment)
 
-        # return self.transform(img), self.transform(mask)
         return img, mask
