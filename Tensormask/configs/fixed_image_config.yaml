@@ -1,0 +1,4 @@
+_BASE_: "Base-TensorMask.yaml"
+DATASETS:
+  TEST: ("validation_boxes", )
+  TRAIN: ("train_boxes", )
