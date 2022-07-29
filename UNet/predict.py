@@ -17,100 +17,98 @@ from lib.models.UNet import UNet
 from lib.utils import *
 
 
-boneage_training_dir = "../data/BoneAge/Bone Age Validation Set/boneage-validation-dataset-1/"
-boneage_target_dir = "boneage-masks/val1/"
+import cv2
+import torch
+import os
+from glob import glob
+import matplotlib.pyplot as plt
 
+from lib.models import *
+from lib.datasets import *
+from tqdm import tqdm
 
-def preprocess(img, size=512):
-    # Scale the image according to the given image size
-    resize = transforms.Resize((size, size))
-    img = resize(img)
+from argparse import ArgumentParser
 
-    img = transforms.ToTensor()(img)[0].unsqueeze(dim=0)
+class Predictor:
+    def __init__(
+        self,
+        model,
+        size=512,
+        use_gpu=False,
+    ):
+        self.model = model
+        self.model.eval()
+        if use_gpu:
+            self.model.cuda()
+            self.device = "cuda:0"
+        else:
+            self.device = "cpu"
+        self.size = size
 
-    img = (img-img.min()) / (img.max()-img.min())
-    # plt.imshow(img.permute(1,2,0))
-    # plt.show()
+    def __call__(self, img_path: str) -> np.array:
+        """
+        provide a path to an image and the predictor return the extracted hand contour
+        """
+        img = self.load_img(img_path)
+        original_img_size = img.size  # WxH
+        img_p = self.preprocess(img, 512).unsqueeze(0).to(self.device)
 
-    return img
+        pred = None
+        with torch.no_grad():
+            pred = self.model(img_p).squeeze()
 
+        pred = torch.sigmoid(pred).float()
 
-def predict(model):
-    to_mask_dirs = ["healthy_magd", "HyCh", "PsHPT", "uts_leipzig", "uts_magdeburg"]
-    to_mask_base_dir = "../data/xcat/"
-    #to_mask_dirs = ["bone_age_training_data_set"]
-    #to_mask_base_dir = "../data/xcat/rsna_bone_age/"
+        # Save prediction, resized to original image size
+        save_img = np.array(transforms.Resize((original_img_size[1], original_img_size[0]))(
+            transforms.ToPILImage()(pred)))
 
-    model.eval()
+        conts, _ = cv2.findContours(save_img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        c = max(conts, key=cv2.contourArea)
 
-    def get_img_names(dir):
-        filenames = [splitext(file)[0] for file in listdir(dir) if not file.startswith('.')]
-        return filenames
+        image_crop = cv2.cvtColor((np.array(img) // 256).astype(np.uint8), cv2.COLOR_GRAY2RGB)
+        vis = cv2.drawContours(image_crop, [c], -1, (0, 255, 0), 5)
+        return save_img, vis
 
-    def load_img(img_name, path):
-        img_file = glob(f"{path}/{img_name}.*")
-
-        print(path)
-        print(img_name)
-        print(img_file)
-
-        img = Image.open(img_file[0])
-
-        # plt.imshow(img)
-        # plt.show()
-
+    @staticmethod
+    def load_img(img_file):
+        img = Image.open(img_file)
         return img
 
-    # Loop through each dir
-    for dir in to_mask_dirs:
-        dir_path = to_mask_base_dir + dir
-        target_dir = f"{to_mask_base_dir}output/{dir}/"
-
-        os.makedirs(target_dir, exist_ok=True)
-
-        img_names = get_img_names(dir_path)
-        for img_name in img_names:
-            img = load_img(img_name, dir_path)
-            original_img_size = img.size #WxH
-            img_p = preprocess(img, 512).unsqueeze(0).to(device)
-
-            pred = None
-            with torch.no_grad():
-                pred = model(img_p).squeeze()
-
-            # Binarize
-            #pred = (torch.sigmoid(pred) > 0.5).float()
-            pred = torch.sigmoid(pred).float()
-            
-            # plt.imshow(pred.cpu())
-            # plt.show()
-
-            # Save prediction
-            transforms.ToPILImage()(pred).save(f"{target_dir}{img_name}.png")
-
-            # Save prediction, resized to original image size
-            save_img = transforms.Resize((original_img_size[1], original_img_size[0]))(transforms.ToPILImage()(pred))
-            save_img.save(f"{target_dir}{img_name}_resize.png")
+    @staticmethod
+    def preprocess(img, size=512):
+        # Scale the image according to the given image size
+        resize = transforms.Resize((size, size))
+        img = resize(img)
+        img = transforms.ToTensor()(img)[0].unsqueeze(dim=0)
+        img = (img - img.min()) / (img.max() - img.min())
+        return img
 
 
-def post_process(img):
-    #Remove everything except for the largest component, using connected components
-    img = (img.squeeze()).numpy()
-    img = img.astype(np.uint8)
-    nb_components, output, stats,_ = cv2.connectedComponentsWithStats(img, connectivity=8) #might test with 4..
-
-    #Remove the background as a component
-    sizes = stats[1:, -1]
-    nb_components = nb_components - 1
-
-    out_img = np.zeros((img.shape), dtype=np.float32)
-    for i in range(0, nb_components):
-        if sizes[i] >= max(sizes):
-            out_img[output == i+1] = 1.
-
-    # Fill holes
-    out_img = ndimage.binary_fill_holes(out_img).astype(np.float32)
-    return torch.from_numpy(out_img)
+def main(
+    input,
+    model,
+    size=512,
+    output="./output/",
+    use_gpu=False,
+):
+    p = Predictor(model, size, use_gpu=use_gpu)
+    os.makedirs(output, exist_ok=True)
+    if os.path.isdir(input):
+        for img_path in tqdm(
+            glob(os.path.join(input, "*.png"))
+            + glob(os.path.join(input, "*.jpg"))
+        ):
+            hand, vis = p(img_path)
+            cv2.imwrite(os.path.join(output, os.path.basename(img_path)), hand)
+            cv2.imwrite(
+                os.path.join(
+                    output, os.path.basename(img_path).replace(".png", "_vis.png")
+                ),
+                vis,
+            )
+    else:
+        cv2.imwrite(os.path.join(output, os.path.basename(input)), p(input))
 
 
 # TODO: Some of these are deprecated and should be removed or re-implemented
@@ -128,24 +126,39 @@ def get_args():
                         default=False)
     parser.add_argument('--batch-size', type=int, default=1, metavar='N',
                         help='input batch size for training (default: 1)')
+    parser.add_argument("--model", default="/home/rassman/bone2gene/hand-segmentation/UNet/lib/output/weights/s15_bonemask_adam_augment_EffUNet_e50_PReLU_upsample_GN_bs8_scale100_dropout0.0.pt")
 
-    parser.add_argument('--model-type', default='UNet', dest='model_type',
+    parser.add_argument('--model-type', default='EffUNet', dest='model_type',
                         help='Model type to use. (Options: UNet, EffUNet)')
-    parser.add_argument('--act-type', default='ReLU', dest='act_type',
+    parser.add_argument('--act-type', default='PReLU', dest='act_type',
                         help='activation function to use in UNet. (Options: ReLU, PReLU)')
     parser.add_argument('--up-type', default='upsample', dest='up_type',
                         help='Upsampling type to use in UpConv part of UNet (Options: upsample, upconv)')
-    parser.add_argument('--norm', default='BN', dest='norm',
+    parser.add_argument('--norm', default='GN', dest='norm',
                         help='Which Normalization to use: None, BN, GN')
 
     parser.add_argument('--seed', type=int, default=11, metavar='S',
                         help='random seed (default: 11)')
 
+    parser.add_argument(
+        "--checkpoint",
+        default="/home/rassman/bone2gene/masking/output/version_25/ckp/best_model.ckpt",
+    )
+    parser.add_argument(
+        "--input",
+        default="/home/rassman/bone2gene/data/annotated/shox_magdeburg/shox_magd_00001.png",
+        help="can be eiter single image or full directory",
+    )
+    parser.add_argument(
+        "--input_size", default=512, type=int,
+    )
+    parser.add_argument(
+        "--output_dir", default="./output/masks/",
+    )
+    parser.add_argument("--use_gpu", action="store_true")
+
     return parser.parse_args()
 
-
-def mask_to_image(mask):
-    return Image.fromarray((mask * 255).astype(np.uint8))
 
 
 if __name__ == "__main__":
@@ -155,9 +168,6 @@ if __name__ == "__main__":
     torch.manual_seed(args.seed)
 
     in_channels = 1
-
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    logging.info(f'Using device {device}')
 
     if args.norm == 'BN':
         norm_type = nn.BatchNorm2d
@@ -184,17 +194,17 @@ if __name__ == "__main__":
 
     if args.model_type == 'UNet':
         model = UNet(depth=5, in_channels=in_channels, num_classes=1, padding=1, act_type=act_type, norm_type=norm_type,
-                     up_type=args.up_type).to(device)
+                     up_type=args.up_type)
     elif args.model_type == 'EffUNet':
         base = 'efficientnet-b0'
-        model = EffUNet(in_channels=in_channels, act_type=act_type, norm_type=nn.GroupNorm, up_type=args.up_type, base=base).to(device)
+        model = EffUNet.EffUNet(in_channels=in_channels, act_type=act_type, norm_type=nn.GroupNorm, up_type=args.up_type, base=base)
     else:
         print(f"No valid model type given! (got model_type: {args.model_type})")
         raise NotImplementedError()
 
 
     logging.info("Loading model {}".format(args.model))
-    model.load_state_dict(torch.load(f"saved_models/s15_bonemask_adam_augment_EffUNet_e50_PReLU_upsample_GN_bs8_scale100_dropout0.0.pt", map_location=device)) # Best performance
+    model.load_state_dict(torch.load(args.model))
     logging.info("Model loaded !")
 
-    predict(model)
+    main(args.input, model, args.input_size, args.output_dir, args.use_gpu)
