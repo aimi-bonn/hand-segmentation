@@ -96,6 +96,7 @@ def main(
     )
     for img_path in tqdm(l):
         hand, vis = p(img_path)
+        img_path = img_path.replace(".jpg", ".png")
         cv2.imwrite(os.path.join(output, os.path.basename(img_path)), hand)
         cv2.imwrite(
             os.path.join(

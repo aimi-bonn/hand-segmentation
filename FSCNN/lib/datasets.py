@@ -307,9 +307,10 @@ class MaskModule(pl.LightningDataModule):
         self.train.masks = [
             x for x in self.train.masks if not os.path.basename(x) in val
         ]
-        self.train.weights = [
-            x for x in self.train.weights if not os.path.basename(x) in val
-        ]
+        if isinstance(self.train, PretrainDataset):
+            self.train.weights = [
+                x for x in self.train.weights if not os.path.basename(x) in val
+            ]
         logger.info(f"after {len(self.train)}")
 
     def train_dataloader(self):
