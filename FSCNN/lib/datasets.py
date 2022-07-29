@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 class MaskDataSet(Dataset):
     def __init__(
-        self, path="/home/rassman/bone2gene/masking/data/train", aug=None, weight=5,
+        self, path="data/train", aug=None, weight=5,
     ):
         self.paths = glob(path + "/" + ("[0-9]" * 4) + ".png")
         self.aug = aug
@@ -84,7 +84,6 @@ class MaskDataSet(Dataset):
         augment = self.aug(image=img, mask=mask, weight=w)
         img = self.normalize(augment["image"][0].unsqueeze(dim=0))
 
-        # VERSION CONTROL!
         if random.random() < 0.075:
             img = img * 0.1
 
@@ -199,9 +198,9 @@ class MaskDataSet(Dataset):
 class PretrainDataset(MaskDataSet):
     def __init__(
         self,
-        img_path="../data/annotated/rsna_bone_age/bone_age_training_data_set",
-        mask_path="../data/masks/tensormask/bone_age",
-        weight_path="../data/masks/weights/",
+        img_path="../../data/annotated/rsna_bone_age/bone_age_training_data_set",
+        mask_path="../../data/masks/tensormask/bone_age",
+        weight_path="../../data/masks/weights/",
         aug=None,
         weight=5,
     ):
@@ -218,7 +217,7 @@ class PretrainDataset(MaskDataSet):
         self.aug = aug
         self._init_weights(weight, weight_path)
 
-    def _init_weights(self, weight, weight_path="../data/masks/weights/"):
+    def _init_weights(self, weight, weight_path="../../data/masks/weights/"):
         if not os.path.exists(weight_path):
             os.makedirs(weight_path)
             for i, path in tqdm(enumerate(self.paths)):
@@ -261,11 +260,17 @@ class PretrainDataset(MaskDataSet):
             mask = np.zeros_like(img[:, :, 0])
 
         img = self.specific_aug(img)
+        if w.shape != mask.shape:
+            print(self.masks[i])
+            w = np.ones_like(mask)
         augment = self.aug(image=img, mask=mask, weight=w)
         img = self.normalize(augment["image"][0].unsqueeze(dim=0))
+
+        if random.random() < 0.075:
+            img = img * 0.1
+
         mask = torch.div(augment["mask"], 255, rounding_mode="trunc")
         w = augment["weight"]
-
         return {"image": img, "mask": mask, "weight": w}
 
 
@@ -275,13 +280,17 @@ class MaskModule(pl.LightningDataModule):
         train_batch_size=8,
         test_batch_size=8,
         num_workers=8,
-        train_path="/home/rassman/bone2gene/masking/data/train",
-        val_path="/home/rassman/bone2gene/masking/data/val",
+        train_path="data/train",
+        val_path="data/val",
         weight_path="../data/masks/weights/",
         size=512,
         pretrain=False,
     ):
         super(MaskModule, self).__init__()
+        self.train_batch_size = train_batch_size
+        self.test_batch_size = test_batch_size
+        self.num_workers = num_workers
+
         if pretrain:
             self.train = PretrainDataset(
                 aug=self.get_default_train_aug(size), weight_path=weight_path,
@@ -289,9 +298,19 @@ class MaskModule(pl.LightningDataModule):
         else:
             self.train = MaskDataSet(train_path, aug=self.get_default_train_aug(size))
         self.val = MaskDataSet(val_path, aug=self.get_inference_aug(size))
-        self.train_batch_size = train_batch_size
-        self.test_batch_size = test_batch_size
-        self.num_workers = num_workers
+
+        logger.info(f"before {len(self.train)}")
+        val = [os.path.basename(x) for x in self.val.paths]
+        self.train.paths = [
+            x for x in self.train.paths if not os.path.basename(x) in val
+        ]
+        self.train.masks = [
+            x for x in self.train.masks if not os.path.basename(x) in val
+        ]
+        self.train.weights = [
+            x for x in self.train.weights if not os.path.basename(x) in val
+        ]
+        logger.info(f"after {len(self.train)}")
 
     def train_dataloader(self):
         return DataLoader(

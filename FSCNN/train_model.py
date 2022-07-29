@@ -26,8 +26,6 @@ def main():
     logger.info(f"{'=' * 10} start training {'=' * 10}")
     cli.trainer.fit(cli.model, cli.datamodule)
 
-    test_ckp_path = cli.get_model_weights()
-
 
 if __name__ == "__main__":
     main()

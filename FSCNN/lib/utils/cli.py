@@ -1,6 +1,5 @@
 from pytorch_lightning.utilities import cli as CLI
 import pytorch_lightning as pl
-from lib.utils import visualize
 from lib.utils.log import log_system_info
 from pytorch_lightning.callbacks import (
     EarlyStopping,
@@ -85,24 +84,6 @@ class CustomCli(CLI.LightningCLI):
                 logger.info("Using best model")
                 return cb.best_model_path
 
-    def examples_to_tb(self) -> None:
-        """
-        Show example batch from train and validation on tensorboard
-        """
-        visualize.sample_batch_to_tb(
-            self.trainer.logger.experiment,
-            next(iter(self.datamodule.train_dataloader())),
-            "example_train_batch",
-            max_examples=8,
-        )
-        visualize.sample_batch_to_tb(
-            self.trainer.logger.experiment,
-            next(iter(self.datamodule.val_dataloader())),
-            "example_val_batch",
-            max_examples=8,
-        )
-        sleep(1)
-
     def log_info(self) -> None:
         log_system_info(logger)
 
@@ -114,18 +95,3 @@ class CustomCli(CLI.LightningCLI):
         logger.info(
             f"Training speed: {(self.model.global_step / (time() - self.model.start_time)):.2f} steps/second"
         )
-
-    def load_model_for_testing(self) -> str:
-        for cb in self.trainer.callbacks:
-            if isinstance(cb, pl.callbacks.ModelCheckpoint):
-                if not self.config["test_on_last_model"]:
-                    logger.info(
-                        f"best model (score: {cb.best_model_score:.4f}) stored at {cb.best_model_path}"
-                    )
-                    self.model = Hand.load_from_checkpoint(
-                        checkpoint_path=cb.best_model_path
-                    )
-                    return cb.best_model_path
-                else:
-                    logger.info("Using last obtained model")
-                    return cb.last_model_path
