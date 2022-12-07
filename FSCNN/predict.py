@@ -86,6 +86,7 @@ def main(
     checkpoint="/home/rassman/bone2gene/masking/output/version_25/ckp/best_model.ckpt",
     output="./output/",
     use_gpu=False,
+    generate_vis=True,
 ):
     p = Predictor(size, checkpoint, use_gpu=use_gpu)
     os.makedirs(output, exist_ok=True)
@@ -98,12 +99,13 @@ def main(
         hand, vis = p(img_path)
         img_path = img_path.replace(".jpg", ".png")
         cv2.imwrite(os.path.join(output, os.path.basename(img_path)), hand)
-        cv2.imwrite(
-            os.path.join(
-                output, os.path.basename(img_path).replace(".png", "_vis.png")
-            ),
-            vis,
-        )
+        if generate_vis:
+            cv2.imwrite(
+                os.path.join(
+                    output, os.path.basename(img_path).replace(".png", "_vis.png")
+                ),
+                vis,
+            )
 
 
 if __name__ == "__main__":
@@ -124,7 +126,15 @@ if __name__ == "__main__":
         "--output_dir", default="./output/masks/",
     )
     parser.add_argument("--use_gpu", action="store_true")
+    parser.add_argument("--generate_vis", action="store_true")
 
     args = parser.parse_args()
 
-    main(args.input, args.input_size, args.checkpoint, args.output_dir, args.use_gpu)
+    main(
+        args.input,
+        args.input_size,
+        args.checkpoint,
+        args.output_dir,
+        args.use_gpu,
+        args.generate_vis,
+    )

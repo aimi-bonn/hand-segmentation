@@ -100,7 +100,7 @@ class Predictor:
 
 
 def main(
-    input, model, size=512, output="./output/", use_gpu=False,
+    input, model, size=512, output="./output/", use_gpu=False, generate_vis=True,
 ):
     p = Predictor(model, size, use_gpu=use_gpu)
     os.makedirs(output, exist_ok=True)
@@ -110,12 +110,13 @@ def main(
         ):
             hand, vis = p(img_path)
             cv2.imwrite(os.path.join(output, os.path.basename(img_path)), hand)
-            cv2.imwrite(
-                os.path.join(
-                    output, os.path.basename(img_path).replace(".png", "_vis.png")
-                ),
-                vis,
-            )
+            if generate_vis:
+                cv2.imwrite(
+                    os.path.join(
+                        output, os.path.basename(img_path).replace(".png", "_vis.png")
+                    ),
+                    vis,
+                )
     else:
         cv2.imwrite(os.path.join(output, os.path.basename(input)), p(input))
 
@@ -197,6 +198,7 @@ def get_args():
         "--output_dir", default="./output/masks/",
     )
     parser.add_argument("--use_gpu", action="store_true")
+    parser.add_argument("--generate_vis", action="store_true")
 
     return parser.parse_args()
 
@@ -259,4 +261,11 @@ if __name__ == "__main__":
     model.load_state_dict(torch.load(args.model))
     logging.info("Model loaded !")
 
-    main(args.input, model, args.input_size, args.output_dir, args.use_gpu)
+    main(
+        args.input,
+        model,
+        args.input_size,
+        args.output_dir,
+        args.use_gpu,
+        args.generate_vis,
+    )
