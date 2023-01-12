@@ -1,6 +1,12 @@
 # RSNA Bone Age - Artifact and Confounder removal by Hand Segmentation
 
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+&nbsp; &nbsp; [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7415591.svg)](https://doi.org/10.5281/zenodo.7415591)
+&nbsp; &nbsp; [![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey.svg)](http://creativecommons.org/licenses/by-nc/4.0/)
+
 This repository contains three Deep Learning approaches segment hands in the [RSNA Pediatric Bone Age Dataset](https://www.kaggle.com/datasets/kmader/rsna-bone-age). It is intended to remove potential artifacts from scanning or department-specific which could disturb or bias downstream analysis or learning. In all models, an array of data augmentations was employed to cope with different challenges such as white border from scanning, boxes, and gradients, as well as inverted intensities, etc. 
+
+The ground truth data is available on [zenodo](https://doi.org/10.5281/zenodo.7415591).
 
 On a manually crafted test set within the RSNA training set, we achieve a DICE similarity score of $>0.99$.
 The models were also qualitatively validated on the Los Angeles Digital Hand Atlas and private data sets: 
@@ -41,12 +47,18 @@ python FSCNN/train_model.py \
 
 The model training can be configured using the YML files in `FSCNN/configs`. Note, that the model will generate pre-computed/cached files containing the loss weights. Input images are expected to be encoded as RGBA, whereby the Alpha channel is the target mask and color information is ignored. 
 
+Per default, logs are saved to `run.log`. 
+To specify a different path, run the script with the `$LOG_FILE` environment variable:
+
+``` bash
+$ LOG_FILE=<path/to/log_file.txt> python train_model.py [...]
+```
+
 ## Efficient-UNet
 
 Here, another semantic segmentation [*Efficient-UNet*](https://github.com/pranshu97/effunet) model was used.
 
-Usage:
-
+### Test models:
 
 ```bash
 python UNet/predict.py \
@@ -56,6 +68,13 @@ python UNet/predict.py \
     --input_size=512 \
     --use_gpu
 ```
+
+### Train / fine tune:
+
+```bash
+python UNet/main.py
+```
+Check with the `--help` flag for training options.
 
 ## Tensormask
 
