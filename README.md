@@ -4,12 +4,12 @@
 &nbsp; &nbsp; [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7415591.svg)](https://doi.org/10.5281/zenodo.7415591)
 &nbsp; &nbsp; [![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey.svg)](http://creativecommons.org/licenses/by-nc/4.0/)
 
-This repository contains three Deep Learning approaches segment hands in the [RSNA Pediatric Bone Age Dataset](https://www.kaggle.com/datasets/kmader/rsna-bone-age). It is intended to remove potential artifacts from scanning or department-specific which could disturb or bias downstream analysis or learning. In all models, an array of data augmentations was employed to cope with different challenges such as white border from scanning, boxes, and gradients, as well as inverted intensities, etc. 
+This repository contains three Deep Learning approaches that segment hands in the [RSNA Pediatric Bone Age Dataset](https://www.kaggle.com/datasets/kmader/rsna-bone-age). It is intended to remove potential artifacts from scanning or department-specific which could disturb or bias downstream analysis or learning. In all models, an array of data augmentations was employed to cope with different challenges such as white border from scanning, boxes, and gradients, as well as inverted intensities, etc.
 
 The ground truth data is available on [zenodo](https://doi.org/10.5281/zenodo.7415591).
 
 On a manually crafted test set within the RSNA training set, we achieve a DICE similarity score of $>0.99$.
-The models were also qualitatively validated on the Los Angeles Digital Hand Atlas and private data sets: 
+The models were also qualitatively validated on the Los Angeles Digital Hand Atlas and private data sets:
 
 <img src="figs/examples.png" width="600" height="600" />
 
@@ -19,7 +19,7 @@ The main model is a semantic segmentation model based on [*FastSurferCNN*](https
 
 ![FSCNN drawing](figs/fscnn_fig.png)
 
-The model is rather lightweight and, therefore, can run without GPU acceleration in almost real-time. The model was trained based on the predictions of the other models. 
+The model is rather lightweight and, therefore, can run without GPU acceleration in almost real-time. The model was trained based on the predictions of the other models.
 
 
 ### Test models:
@@ -33,7 +33,7 @@ python FSCNN/predict.py \
     --use_gpu
 ```
 
-Hereby, the `input` can be either a whole directory containing the files or a single file. 
+Hereby, the `input` can be either a whole directory containing the files or a single file.
 
 
 ### Train / fine tune:
@@ -45,9 +45,9 @@ python FSCNN/train_model.py \
     --size=512
 ```
 
-The model training can be configured using the YML files in `FSCNN/configs`. Note, that the model will generate pre-computed/cached files containing the loss weights. Input images are expected to be encoded as RGBA, whereby the Alpha channel is the target mask and color information is ignored. 
+The model training can be configured using the YML files in `FSCNN/configs`. Note, that the model will generate pre-computed/cached files containing the loss weights. Input images are expected to be encoded as RGBA, whereby the Alpha channel is the target mask and color information is ignored.
 
-Per default, logs are saved to `run.log`. 
+Per default, logs are saved to `run.log`.
 To specify a different path, run the script with the `$LOG_FILE` environment variable:
 
 ``` bash
@@ -64,7 +64,7 @@ Here, another semantic segmentation [*Efficient-UNet*](https://github.com/pransh
 python UNet/predict.py \
     --model=/path/to/checkpoint.ckpt \
     --input=/path/to/input/ \
-    --output=/path/to/target 
+    --output=/path/to/target
     --input_size=512 \
     --use_gpu
 ```
