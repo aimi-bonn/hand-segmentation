@@ -4,9 +4,11 @@
 &nbsp; &nbsp; [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7415591.svg)](https://doi.org/10.5281/zenodo.7415591)
 &nbsp; &nbsp; [![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey.svg)](http://creativecommons.org/licenses/by-nc/4.0/)
 
+Implementation of masking module of [Deeplasia](https://doi.org/10.1007/s00247-023-05789-1).
+
 This repository contains three Deep Learning approaches that segment hands in the [RSNA Pediatric Bone Age Dataset](https://www.kaggle.com/datasets/kmader/rsna-bone-age). It is intended to remove potential artifacts from scanning or department-specific which could disturb or bias downstream analysis or learning. In all models, an array of data augmentations was employed to cope with different challenges such as white border from scanning, boxes, and gradients, as well as inverted intensities, etc.
 
-The ground truth data is available on [zenodo](https://doi.org/10.5281/zenodo.7415591).
+The ground truth data is available on [zenodo](https://doi.org/10.5281/zenodo.7415591). 
 
 On a manually crafted test set within the RSNA training set, we achieve a DICE similarity score of $>0.99$.
 The models were also qualitatively validated on the Los Angeles Digital Hand Atlas and private data sets:
@@ -81,6 +83,16 @@ Check with the `--help` flag for training options.
 Here, an instance segmentation model implemented in [*Detectron2*](https://github.com/facebookresearch/detectron2/blob/main/projects/TensorMask/README.md) was used. Models were trained in Colab, so the requirements are specified there.
 
 
-# Citation
 
-tba
+# Citation
+```
+@article{rassmann2023deeplasia,
+  title={Deeplasia: deep learning for bone age assessment validated on skeletal dysplasias},
+  author={Rassmann, Sebastian and Keller, Alexandra and Skaf, Kyra and Hustinx, Alexander and Gausche, Ruth and Ibarra-Arrelano, Miguel A and Hsieh, Tzung-Chien and Madajieu, Yolande ED and N{\"o}then, Markus M and Pf{\"a}ffle, Roland and others},
+  journal={Pediatric Radiology},
+  pages={1--14},
+  year={2023},
+  publisher={Springer}
+}
+```
+
